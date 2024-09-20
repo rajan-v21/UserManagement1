@@ -1,10 +1,13 @@
 "use client";
 
-import { useQuery } from '@apollo/client';
+import { useQuery, useApolloClient } from '@apollo/client';
 import { GET_USER } from './api/queries';
 import { Button } from '@progress/kendo-react-buttons';
-import React, { useEffect, useState } from 'react';
-import { PencilIcon } from "@heroicons/react/24/outline";
+import React, { useState } from 'react';
+import { useRouter } from "next/navigation";
+import { PencilSquareIcon } from "@heroicons/react/24/outline";
+import Profile from './components/UserDetails/profile';
+import Contact from './components/UserDetails/contact';
 
 interface HomeProps {
   selectedUser: string | null;
@@ -13,10 +16,15 @@ interface HomeProps {
 export default function Home({ selectedUser }: HomeProps) {
 
   const [showProfile, setShowProfile] = useState(true);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [isEditingContact, setIsEditingContact] = useState(false);
+  const router = useRouter();
+  const client = useApolloClient(); // Apollo Client instance to update cache
 
   const { data, loading, error } = useQuery(GET_USER, {
     variables: { id: selectedUser },
     skip: !selectedUser,
+    fetchPolicy: 'cache-first',
   });
 
   if (!selectedUser) {
@@ -28,16 +36,51 @@ export default function Home({ selectedUser }: HomeProps) {
 
   const handleToggleProfileView = () => {
     setShowProfile(true);
+    setIsEditingProfile(false);
   };
 
   const handleToggleContactView = () => {
     setShowProfile(false);
+    setIsEditingContact(false);
+  };
+
+  const handleEditClick = () => {
+    if(showProfile){
+      setIsEditingProfile(true);
+      router.push(`/?user=${selectedUser}&edit-profile`, { shallow: true }); // Update URL without reloading the page
+    } else {
+      setIsEditingContact(true);
+      router.push(`/?user=${selectedUser}&edit-contact`, { shallow: true }); // Update URL without reloading the page
+    }
+    
+    
+  };
+
+  const handleSave = (updatedDetails: any) => {
+    console.log("Saved details:", updatedDetails);
+    if(showProfile){
+      setIsEditingProfile(false);
+    } else {
+      setIsEditingContact(false); 
+    }
+
+    // Update the Apollo cache manually to reflect changes on the UI
+    client.writeQuery({
+      query: GET_USER,
+      variables: { id: selectedUser },
+      data: {
+        getUser: updatedDetails, // The updated details of the user
+      },
+    });
+
+
+    router.push(`/?user=${selectedUser}`, { shallow: true }); // Reset URL after saving
   };
 
   const user = data?.getUser || {};
 
-  const blueButton = "flex h-[48px] w-[200px] grow items-center justify-center gap-2 rounded-md bg-blue-500 text-white p-3 text-sm font-bold hover:bg-blue-700 hover:text-white md:flex-none md:justify-center md:p-2 md:px-3 my-4";
-  const yellowButton = "flex h-[48px] w-[200px] grow items-center justify-center gap-2 text-sm rounded-md bg-yellow-500 text-white p-3 text-sm font-bold hover:bg-yellow-600 hover:text-white md:flex-none md:justify-center md:p-2 md:px-3 my-4 cursor-pointer";
+  const blueButton = "flex h-[48px] w-[200px] grow items-center justify-center gap-2 rounded-md bg-blue-500 text-white p-3 text-md font-bold hover:bg-blue-700 hover:text-white md:flex-none md:justify-center md:p-2 md:px-3 my-4";
+  const yellowButton = "flex h-[48px] w-[200px] grow items-center justify-center gap-2 rounded-md bg-yellow-400 text-white p-3 text-md font-bold hover:bg-yellow-600 hover:text-white md:flex-none md:justify-center md:p-2 md:px-3 my-4 cursor-pointer";
 
   return (
     <div>
@@ -68,30 +111,27 @@ export default function Home({ selectedUser }: HomeProps) {
           }}
         >
           <div className="p-6">
-
-            {/* {showProfile ? <Profile user={user} /> : <Contact user={user} />} */}
-
-            {showProfile ?
-              <>
-                <p>ID: {user.id}</p>
-                <p>Username: {user.username}</p>
-                <p>Company: {user.company.name}</p>
-                <p>Address: {user.address.street} {user.address.suite} {user.address.city} {user.address.zipcode}</p>
-              </>
-            : <>
-                <p>Email: {user.email}</p>
-                <p>Phone: {user.phone}</p>
-                <p>Website: {user.website}</p> 
-              </>}
-            </div>
+            {showProfile ? (
+              <Profile
+                user={user}
+                isEditing={isEditingProfile} // Pass edit state
+                onSave={handleSave} // Pass save handler
+              />
+            ) : (
+              <Contact
+                user={user}
+                isEditing={isEditingContact} // Pass edit state
+                onSave={handleSave} // Pass save handler
+              />
+            )}
           </div>
-          <div
-              className={yellowButton}
-              // onClick={handleToggleContactView}
-            >
-              <PencilIcon className="w-6 h-6" />
-              <span>Edit</span>
+        </div>
+        {!isEditingProfile && !isEditingContact && (
+          <div className={yellowButton} onClick={handleEditClick}>
+            <PencilSquareIcon className="w-6 h-6" />
+            <span>Edit</span>
           </div>
+        )}
       </div>
     </div>
   );
