@@ -68,7 +68,7 @@ const Profile = ({ user, isEditing, onSave }: ProfileProps) => {
             className="border p-1 ml-2"
           />
         </p><br/>
-        <button type="submit" className="bg-green-500 text-white p-2 mt-2">
+        <button type="submit" className="flex h-[48px] w-[200px] grow items-center justify-center gap-2 rounded-md bg-green-500 text-white p-3 text-md font-bold hover:bg-green-600 hover:text-white md:flex-none md:justify-center md:p-2 md:px-3 my-4 cursor-pointer">
           Save
         </button>
       </form>
